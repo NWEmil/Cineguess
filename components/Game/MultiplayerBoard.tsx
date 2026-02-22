@@ -14,45 +14,56 @@ const MultiplayerBoard: React.FC<MultiplayerBoardProps> = ({ user, roomId, onRen
   const [room, setRoom] = useState<Room | null>(null);
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
   const [options, setOptions] = useState<string[]>([]);
-  const ws = useRef<WebSocket | null>(null);
   const prevStatus = useRef<string | null>(null);
   const prevTimer = useRef<number>(10);
 
   useEffect(() => {
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    ws.current = new WebSocket(`${protocol}//${window.location.host}`);
+    const fetchRoom = async () => {
+      try {
+        const response = await fetch(`/api/rooms/${roomId}`);
+        if (response.ok) {
+          const newRoom = await response.json();
+          
+          // Play sounds based on state changes
+          if (prevStatus.current === 'playing' && newRoom.status === 'finished') {
+            soundService.play('complete');
+          }
 
-    ws.current.onopen = () => {
-      ws.current?.send(JSON.stringify({
-        type: 'JOIN_ROOM',
-        roomId,
-        player: { id: user.id, username: user.username }
-      }));
-    };
+          // Warning sound for timer
+          if (newRoom.status === 'playing' && newRoom.timer <= 3 && newRoom.timer < prevTimer.current && newRoom.timer > 0) {
+            soundService.play('warning');
+          }
 
-    ws.current.onmessage = (event) => {
-      const message = JSON.parse(event.data);
-      if (message.type === 'ROOM_UPDATE') {
-        const newRoom = message.room as Room;
-        
-        // Play sounds based on state changes
-        if (prevStatus.current === 'playing' && newRoom.status === 'finished') {
-          soundService.play('complete');
+          setRoom(newRoom);
+          prevStatus.current = newRoom.status;
+          prevTimer.current = newRoom.timer;
         }
-
-        // Warning sound for timer
-        if (newRoom.status === 'playing' && newRoom.timer <= 3 && newRoom.timer < prevTimer.current) {
-          soundService.play('warning');
-        }
-
-        setRoom(newRoom);
-        prevStatus.current = newRoom.status;
-        prevTimer.current = newRoom.timer;
+      } catch (err) {
+        console.error('Failed to fetch room:', err);
       }
     };
 
+    const joinRoom = async () => {
+      try {
+        const response = await fetch(`/api/rooms/${roomId}/join`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ player: { id: user.id, username: user.username } })
+        });
+        if (response.ok) {
+          const initialRoom = await response.json();
+          setRoom(initialRoom);
+        }
+      } catch (err) {
+        console.error('Failed to join room:', err);
+      }
+    };
+
+    joinRoom();
+    const interval = setInterval(fetchRoom, 1000);
+
     return () => {
-      ws.current?.close();
+      clearInterval(interval);
     };
   }, [roomId, user.id, user.username]);
 
@@ -71,20 +82,25 @@ const MultiplayerBoard: React.FC<MultiplayerBoardProps> = ({ user, roomId, onRen
     }
   }, [room?.currentMovieIndex, room?.status]);
 
-  const handleReady = () => {
-    ws.current?.send(JSON.stringify({ type: 'READY' }));
+  const handleReady = async () => {
+    await fetch(`/api/rooms/${roomId}/action`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'READY', playerId: user.id })
+    });
   };
 
-  const handleRename = (newName: string) => {
+  const handleRename = async (newName: string) => {
     if (!newName.trim()) return;
-    ws.current?.send(JSON.stringify({
-      type: 'RENAME',
-      username: newName.trim()
-    }));
+    await fetch(`/api/rooms/${roomId}/action`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'RENAME', playerId: user.id, username: newName.trim() })
+    });
     onRename?.(newName.trim());
   };
 
-  const handleAnswer = (title: string) => {
+  const handleAnswer = async (title: string) => {
     if (selectedAnswer || !room) return;
     setSelectedAnswer(title);
     const isCorrect = title === room.movies[room.currentMovieIndex].title;
@@ -95,11 +111,16 @@ const MultiplayerBoard: React.FC<MultiplayerBoardProps> = ({ user, roomId, onRen
       soundService.play('incorrect');
     }
 
-    ws.current?.send(JSON.stringify({ 
-      type: 'SUBMIT_ANSWER', 
-      isCorrect, 
-      movieId: room.movies[room.currentMovieIndex].id 
-    }));
+    await fetch(`/api/rooms/${roomId}/action`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+        type: 'SUBMIT_ANSWER', 
+        playerId: user.id,
+        isCorrect, 
+        movieId: room.movies[room.currentMovieIndex].id 
+      })
+    });
   };
 
   const copyInviteLink = () => {
@@ -160,7 +181,14 @@ const MultiplayerBoard: React.FC<MultiplayerBoardProps> = ({ user, roomId, onRen
             COPY INVITE LINK
           </button>
           <button 
-            onClick={onExit}
+            onClick={async () => {
+              await fetch(`/api/rooms/${roomId}/action`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ type: 'EXIT', playerId: user.id })
+              }).catch(() => {});
+              onExit();
+            }}
             className="bg-transparent hover:text-red-500 text-gray-500 px-8 py-4 rounded-xl font-bold transition-all"
           >
             EXIT
@@ -276,7 +304,14 @@ const MultiplayerBoard: React.FC<MultiplayerBoardProps> = ({ user, roomId, onRen
             
             <div className="pt-8">
               <button 
-                onClick={onExit}
+                onClick={async () => {
+                  await fetch(`/api/rooms/${roomId}/action`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ type: 'EXIT', playerId: user.id })
+                  }).catch(() => {});
+                  onExit();
+                }}
                 className="w-full bg-white text-black px-12 py-4 rounded-xl font-bold hover:bg-gray-200 transition-all"
               >
                 BACK TO HOME

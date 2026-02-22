@@ -59,4 +59,5 @@ export interface Room {
   currentMovieIndex: number;
   movies: Movie[];
   timer: number;
+  roundStartTime?: number;
 }

@@ -8,9 +8,14 @@ const { Pool } = pg;
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
+  ssl: process.env.DATABASE_URL?.includes('neon.tech') ? { rejectUnauthorized: false } : false
 });
 
 export async function initDb() {
+  if (!process.env.DATABASE_URL) {
+    console.warn('DATABASE_URL not found. Skipping database initialization.');
+    return;
+  }
   console.log('Initializing database...');
   const client = await pool.connect();
   try {
@@ -32,6 +37,12 @@ export async function initDb() {
         games_played INTEGER DEFAULT 0,
         wins INTEGER DEFAULT 0,
         is_admin BOOLEAN DEFAULT FALSE
+      );
+
+      CREATE TABLE IF NOT EXISTS rooms (
+        id TEXT PRIMARY KEY,
+        state JSONB NOT NULL,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `);
     
