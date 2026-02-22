@@ -1,0 +1,5 @@
+{
+  "name": "Copy of CineGuess: The Movie Screenshot Game",
+  "description": "A high-stakes movie guessing game where players compete to identify films from single screenshots. Features multiplayer support, global leaderboards, and an admin dashboard.",
+  "requestFramePermissions": []
+}
