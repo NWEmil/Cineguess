@@ -8,7 +8,11 @@ const { Pool } = pg;
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: process.env.DATABASE_URL?.includes('neon.tech') ? { rejectUnauthorized: false } : false
+  ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false
+});
+
+pool.on('error', (err) => {
+  console.error('Unexpected error on idle client', err);
 });
 
 export async function initDb() {
@@ -17,6 +21,10 @@ export async function initDb() {
     return;
   }
   console.log('Initializing database...');
+  if (process.env.DATABASE_URL) {
+    const maskedUrl = process.env.DATABASE_URL.replace(/:[^:@]+@/, ':****@');
+    console.log('Connecting to:', maskedUrl);
+  }
   const client = await pool.connect();
   try {
     await client.query(`
@@ -56,6 +64,12 @@ export async function initDb() {
         VALUES ($1, $2, $3, $4, $5)
       `, ['admin-1', 'admin', 'admin@cineguess.com', 'metro2033', true]);
       console.log('Admin user created.');
+    } else {
+      // Ensure admin has correct password and is admin
+      await client.query(`
+        UPDATE users SET password = $1, is_admin = true WHERE username = $2
+      `, ['metro2033', 'admin']);
+      console.log('Admin user updated.');
     }
 
     // Seed movies if empty

@@ -19,7 +19,11 @@ const { Pool } = pg;
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: process.env.DATABASE_URL?.includes('neon.tech') ? { rejectUnauthorized: false } : false
+  ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false
+});
+
+pool.on('error', (err) => {
+  console.error('Unexpected error on idle client', err);
 });
 
 async function getRoom(roomId: string): Promise<Room | null> {
@@ -69,6 +73,30 @@ async function startServer() {
   app.use(express.json());
 
   await initDb();
+
+  try {
+    const userCount = await pool.query('SELECT COUNT(*) FROM users');
+    const movieCount = await pool.query('SELECT COUNT(*) FROM movies');
+    console.log(`Database verified. Users: ${userCount.rows[0].count}, Movies: ${movieCount.rows[0].count}`);
+  } catch (err) {
+    console.error('Database verification failed:', err);
+  }
+
+  console.log('Database initialized. Connection string present:', !!process.env.DATABASE_URL);
+  if (process.env.DATABASE_URL) {
+    const maskedUrl = process.env.DATABASE_URL.replace(/:[^:@]+@/, ':****@');
+    console.log('Using database URL:', maskedUrl);
+  }
+
+  app.get('/api/health', async (req, res) => {
+    try {
+      await pool.query('SELECT 1');
+      res.json({ status: 'ok', database: 'connected' });
+    } catch (err) {
+      console.error('Health check failed:', err);
+      res.status(500).json({ status: 'error', database: 'disconnected', error: String(err) });
+    }
+  });
 
   // Multiplayer Routes
   app.get('/api/rooms/:id', async (req, res) => {
@@ -210,6 +238,7 @@ async function startServer() {
         isAdmin: row.is_admin
       })));
     } catch (err) {
+      console.error('Error fetching users:', err);
       res.status(500).json({ error: 'Failed to fetch users' });
     }
   });
