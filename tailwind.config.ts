@@ -1,14 +1,24 @@
-/** @type {import('tailwindcss').Config} */
-module.exports = {
+import type { Config } from 'tailwindcss';
+
+const config: Config = {
   content: [
-    "./app/**/*.{js,ts,jsx,tsx,mdx}",           // App Router pages/layouts
-    "./components/**/*.{js,ts,jsx,tsx,mdx}",    // ← Change to "./Components/..." if folder is capitalized
-    "./lib/**/*.{js,ts,jsx,tsx,mdx}",           // If you have utilities here
-    // Add any other folders where you use Tailwind classes, e.g.:
-    // "./src/**/*.{js,ts,jsx,tsx,mdx}",
+    './pages/**/*.{js,ts,jsx,tsx,mdx}',
+    './components/**/*.{js,ts,jsx,tsx,mdx}',
+    './app/**/*.{js,ts,jsx,tsx,mdx}',
   ],
   theme: {
-    extend: {},
+    extend: {
+      fontFamily: {
+        sans: ['var(--font-inter)'],
+        brand: ['var(--font-bebas-neue)'],
+      },
+      colors: {
+        'cine-dark': '#0a0a0a',
+        'cine-red': '#ef4444',
+      },
+    },
   },
   plugins: [],
-}
+};
+
+export default config;
