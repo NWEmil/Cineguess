@@ -32,9 +32,13 @@ class DBService {
   }
 
   async updateMovie(id: string, updates: Partial<Movie>): Promise<Movie> {
-    // Note: server doesn't have PATCH for movies yet, but we can implement if needed.
-    // For now, we'll just throw or implement it.
-    throw new Error('Update movie not implemented on server');
+    const response = await fetch(`/api/movies/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updates)
+    });
+    if (!response.ok) throw new Error('Failed to update movie');
+    return response.json();
   }
 
   async deleteMovie(id: string): Promise<void> {
