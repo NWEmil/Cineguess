@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "next dev -p 3000",
-    "build": "npm run initdb && next build",
+    "build": "next build",
     "start": "next start -p 3000",
     "lint": "tsc --noEmit",
     "initdb": "tsx db-init.ts"
@@ -32,9 +32,7 @@
   "devDependencies": {
     "@types/node": "^22.14.0",
     "@types/react": "19.2.14",
-    "@vitejs/plugin-react": "^5.0.0",
     "autoprefixer": "^10.4.24",
-    "typescript": "~5.8.2",
-    "vite": "^6.2.0"
+    "typescript": "~5.8.2"
   }
 }
